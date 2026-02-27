@@ -1,19 +1,59 @@
 # Spark iOS
 
-iOS companion app for [Spark](https://github.com/nulljosh/spark), the idea-sharing platform.
+Native iOS companion for [Spark](https://spark.heyitsmejosh.com) — idea sharing with voting.
 
-## Features (Planned)
-- Browse and vote on ideas
-- Create and share new posts
-- User profiles and auth
+![Architecture](architecture.svg)
 
 ## Stack
-- SwiftUI, iOS 17+
-- @Observable state management
-- Supabase backend (shared with web)
+
+- SwiftUI, iOS 17+, Swift 6
+- `@Observable` state management
+- URLSession + async/await
+- Keychain JWT storage
+- Backend: Vercel serverless at `spark.heyitsmejosh.com`
+
+## Features
+
+- Browse posts with pull-to-refresh
+- Upvote / downvote (auth required)
+- Create posts with category picker
+- Login / register in-app
+- Profile: your posts, score, sign out
+- JWT stored securely in Keychain
 
 ## Build
-Open in Xcode 15+ and run on simulator or device.
+
+```bash
+# Install xcodegen if needed
+brew install xcodegen
+
+cd ~/Documents/Code/spark-ios
+xcodegen generate
+open Spark.xcodeproj
+```
+
+Run on simulator or device via Xcode.
+
+## API
+
+Base: `https://spark.heyitsmejosh.com`
+
+| Method | Path | Auth |
+|--------|------|------|
+| POST | /api/auth/login | no |
+| POST | /api/auth/register | no |
+| GET | /api/posts | no |
+| POST | /api/posts | yes |
+| POST | /api/posts/:id/vote | yes |
+
+## Roadmap
+
+- [ ] Push notifications for votes
+- [ ] Infinite scroll pagination
+- [ ] Haptic feedback on votes
+- [ ] Dark mode polish
+- [ ] Deep links
 
 ## License
+
 MIT 2026, Joshua Trommel
