@@ -21,7 +21,7 @@ struct ContentView: View {
                 .tabItem { Label("Profile", systemImage: "person.circle") }
                 .tag(2)
         }
-        .tint(Color(hex: "0071e3"))
+        .tint(.accent)
         .sheet(isPresented: $appState.showAuth) {
             AuthSheet()
         }
@@ -103,13 +103,28 @@ struct PostCard: View {
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
     }
 
-    private func relativeDate(_ iso: String) -> String {
+    private static let isoFormatter: ISO8601DateFormatter = {
         let fmt = ISO8601DateFormatter()
         fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = fmt.date(from: iso) ?? ISO8601DateFormatter().date(from: iso) else { return "" }
-        let rel = RelativeDateTimeFormatter()
-        rel.unitsStyle = .abbreviated
-        return rel.localizedString(for: date, relativeTo: Date())
+        return fmt
+    }()
+
+    private static let isoFormatterNoFraction: ISO8601DateFormatter = {
+        let fmt = ISO8601DateFormatter()
+        fmt.formatOptions = [.withInternetDateTime]
+        return fmt
+    }()
+
+    private static let relativeFormatter: RelativeDateTimeFormatter = {
+        let fmt = RelativeDateTimeFormatter()
+        fmt.unitsStyle = .abbreviated
+        return fmt
+    }()
+
+    private func relativeDate(_ iso: String) -> String {
+        guard let date = Self.isoFormatter.date(from: iso)
+                ?? Self.isoFormatterNoFraction.date(from: iso) else { return "" }
+        return Self.relativeFormatter.localizedString(for: date, relativeTo: Date())
     }
 }
 
@@ -125,7 +140,7 @@ struct VoteButton: View {
         } label: {
             Image(systemName: icon)
                 .font(.subheadline)
-                .foregroundStyle(appState.isLoggedIn ? Color(hex: "0071e3") : .secondary)
+                .foregroundStyle(appState.isLoggedIn ? .accent : .secondary)
         }
         .buttonStyle(.plain)
         .disabled(!appState.isLoggedIn)
@@ -141,8 +156,8 @@ struct CategoryBadge: View {
             .fontWeight(.semibold)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(Color(hex: "0071e3").opacity(0.15), in: Capsule())
-            .foregroundStyle(Color(hex: "0071e3"))
+            .background(Color.accent.opacity(0.15), in: Capsule())
+            .foregroundStyle(.accent)
     }
 }
 
@@ -260,12 +275,12 @@ struct ProfileView: View {
                     Section {
                         HStack(spacing: 14) {
                             Circle()
-                                .fill(Color(hex: "0071e3").opacity(0.15))
+                                .fill(Color.accent.opacity(0.15))
                                 .frame(width: 60, height: 60)
                                 .overlay(
                                     Text(String(user.username.prefix(1)).uppercased())
                                         .font(.title2.bold())
-                                        .foregroundStyle(Color(hex: "0071e3"))
+                                        .foregroundStyle(.accent)
                                 )
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(user.username)
@@ -316,7 +331,7 @@ struct ProfileView: View {
                                 appState.showAuth = true
                             }
                             .buttonStyle(.borderedProminent)
-                            .tint(Color(hex: "0071e3"))
+                            .tint(.accent)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 24)
@@ -389,7 +404,7 @@ struct AuthSheet: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(Color(hex: "0071e3"))
+                .tint(.accent)
                 .controlSize(.large)
                 .disabled(!canSubmit)
                 .padding(.horizontal)
@@ -436,13 +451,13 @@ struct AuthButton: View {
                 appState.logout()
             } label: {
                 Image(systemName: "person.fill.checkmark")
-                    .foregroundStyle(Color(hex: "0071e3"))
+                    .foregroundStyle(.accent)
             }
         } else {
             Button("Sign In") {
                 appState.showAuth = true
             }
-            .tint(Color(hex: "0071e3"))
+            .tint(.accent)
         }
     }
 }
@@ -450,6 +465,8 @@ struct AuthButton: View {
 // MARK: - Color Extension
 
 extension Color {
+    static let accent = Color(hex: "0071e3")
+
     init(hex: String) {
         let scanner = Scanner(string: hex)
         var rgb: UInt64 = 0

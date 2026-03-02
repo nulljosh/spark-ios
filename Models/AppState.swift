@@ -11,53 +11,27 @@ final class AppState {
 
     var isLoggedIn: Bool { user != nil }
 
-    init() {
-        checkAuth()
-    }
+    private static let userCacheKey = "spark_auth_user"
 
-    func checkAuth() {
-        guard let token = SparkAPI.shared.loadToken(), !token.isEmpty else { return }
-        // Restore lightweight session from Keychain — token is already stored,
-        // decode username/userId from a cached AuthResponse if present.
-        if let data = KeychainHelper.load(key: "spark_auth_user"),
-           let saved = try? JSONDecoder().decode(AuthResponse.self, from: data) {
-            user = saved
-        }
+    init() {
+        restoreSession()
     }
 
     func login(username: String, password: String) async {
-        isLoading = true
-        error = nil
-        do {
-            let auth = try await SparkAPI.shared.login(username: username, password: password)
-            user = auth
-            persistUser(auth)
-            showAuth = false
-            await loadPosts()
-        } catch {
-            self.error = error.localizedDescription
+        await authenticate {
+            try await SparkAPI.shared.login(username: username, password: password)
         }
-        isLoading = false
     }
 
     func register(username: String, email: String?, password: String) async {
-        isLoading = true
-        error = nil
-        do {
-            let auth = try await SparkAPI.shared.register(username: username, email: email, password: password)
-            user = auth
-            persistUser(auth)
-            showAuth = false
-            await loadPosts()
-        } catch {
-            self.error = error.localizedDescription
+        await authenticate {
+            try await SparkAPI.shared.register(username: username, email: email, password: password)
         }
-        isLoading = false
     }
 
     func logout() {
         SparkAPI.shared.clearToken()
-        KeychainHelper.delete(key: "spark_auth_user")
+        KeychainHelper.delete(key: Self.userCacheKey)
         user = nil
         posts = []
     }
@@ -84,9 +58,33 @@ final class AppState {
         }
     }
 
+    // MARK: - Private
+
+    private func restoreSession() {
+        guard let token = SparkAPI.shared.loadToken(), !token.isEmpty else { return }
+        guard let data = KeychainHelper.load(key: Self.userCacheKey),
+              let saved = try? JSONDecoder().decode(AuthResponse.self, from: data) else { return }
+        user = saved
+    }
+
+    private func authenticate(_ action: () async throws -> AuthResponse) async {
+        isLoading = true
+        error = nil
+        do {
+            let auth = try await action()
+            user = auth
+            persistUser(auth)
+            showAuth = false
+            await loadPosts()
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isLoading = false
+    }
+
     private func persistUser(_ auth: AuthResponse) {
         if let data = try? JSONEncoder().encode(auth) {
-            KeychainHelper.save(key: "spark_auth_user", data: data)
+            KeychainHelper.save(key: Self.userCacheKey, data: data)
         }
     }
 }

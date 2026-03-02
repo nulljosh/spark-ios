@@ -58,7 +58,7 @@ final class SparkAPI: Sendable {
         return req
     }
 
-    private func perform<T: Decodable>(_ req: URLRequest) async throws -> T {
+    private func validated(_ req: URLRequest) async throws -> Data {
         let (data, response) = try await URLSession.shared.data(for: req)
         guard let http = response as? HTTPURLResponse else { throw APIError.badResponse(0) }
         guard (200...299).contains(http.statusCode) else {
@@ -68,6 +68,11 @@ final class SparkAPI: Sendable {
             }
             throw APIError.badResponse(http.statusCode)
         }
+        return data
+    }
+
+    private func perform<T: Decodable>(_ req: URLRequest) async throws -> T {
+        let data = try await validated(req)
         do {
             return try JSONDecoder().decode(T.self, from: data)
         } catch {
@@ -76,15 +81,7 @@ final class SparkAPI: Sendable {
     }
 
     private func performVoid(_ req: URLRequest) async throws {
-        let (data, response) = try await URLSession.shared.data(for: req)
-        guard let http = response as? HTTPURLResponse else { throw APIError.badResponse(0) }
-        guard (200...299).contains(http.statusCode) else {
-            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let msg = json["error"] as? String {
-                throw APIError.serverError(msg)
-            }
-            throw APIError.badResponse(http.statusCode)
-        }
+        _ = try await validated(req)
     }
 
     // MARK: - Auth
@@ -99,7 +96,7 @@ final class SparkAPI: Sendable {
 
     func register(username: String, email: String?, password: String) async throws -> AuthResponse {
         var payload: [String: String] = ["username": username, "password": password]
-        if let email = email, !email.isEmpty { payload["email"] = email }
+        if let email, !email.isEmpty { payload["email"] = email }
         let body = try JSONSerialization.data(withJSONObject: payload)
         let req = try request("/api/auth/register", method: "POST", body: body)
         let result: AuthResponse = try await perform(req)
