@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <rect width="200" height="200" rx="32" fill="#f5f5f7" stroke="#d1d5db" stroke-width="1"/>
+  <!-- Phone frame -->
+  <rect x="60" y="35" width="80" height="130" rx="12" fill="none" stroke="#f59e0b" stroke-width="2" opacity="0.6"/>
+  <rect x="85" y="40" width="30" height="4" rx="2" fill="#f59e0b" opacity="0.3"/>
+  <!-- Lightbulb inside phone -->
+  <circle cx="100" cy="85" r="16" fill="none" stroke="#f59e0b" stroke-width="2" opacity="0.6"/>
+  <line x1="92" y1="101" x2="92" y2="110" stroke="#f59e0b" stroke-width="1.5" opacity="0.5"/>
+  <line x1="108" y1="101" x2="108" y2="110" stroke="#f59e0b" stroke-width="1.5" opacity="0.5"/>
+  <line x1="92" y1="110" x2="108" y2="110" stroke="#f59e0b" stroke-width="1.5" opacity="0.5"/>
+  <!-- Spark rays -->
+  <line x1="100" y1="62" x2="100" y2="55" stroke="#f59e0b" stroke-width="1.5" opacity="0.4"/>
+  <line x1="118" y1="75" x2="125" y2="70" stroke="#f59e0b" stroke-width="1.5" opacity="0.4"/>
+  <line x1="82" y1="75" x2="75" y2="70" stroke="#f59e0b" stroke-width="1.5" opacity="0.4"/>
+  <!-- Filament -->
+  <path d="M96,85 Q98,78 100,85 Q102,78 104,85" fill="none" stroke="#f59e0b" stroke-width="1.5" opacity="0.5"/>
+</svg>
