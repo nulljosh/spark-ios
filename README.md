@@ -1,6 +1,14 @@
+<div align="center">
+
 # Spark iOS
 
-Native iOS companion for [Spark](https://spark.heyitsmejosh.com) — idea sharing with voting.
+<img src="icon.svg" alt="Spark iOS" width="120" />
+
+Native iOS companion for [Spark](https://spark.heyitsmejosh.com) -- idea sharing with voting.
+
+</div>
+
+## Architecture
 
 ![Architecture](architecture.svg)
 
