@@ -32,6 +32,38 @@ struct ContentView: View {
 
 struct FeedView: View {
     @Environment(AppState.self) private var appState
+    @State private var selectedCategory = "All"
+    @State private var searchText = ""
+
+    private let categories = ["All", "Technology", "Design", "Business", "Science", "Other"]
+
+    private var filteredPosts: [Post] {
+        appState.posts.filter { post in
+            matchesCategory(post.category) && matchesSearch(post)
+        }
+    }
+
+    private func matchesCategory(_ category: String) -> Bool {
+        guard selectedCategory != "All" else { return true }
+
+        switch selectedCategory {
+        case "Technology":
+            return category.caseInsensitiveCompare("Technology") == .orderedSame ||
+            category.caseInsensitiveCompare("Tech") == .orderedSame
+        default:
+            return category.caseInsensitiveCompare(selectedCategory) == .orderedSame
+        }
+    }
+
+    private func matchesSearch(_ post: Post) -> Bool {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return true }
+
+        return post.title.localizedCaseInsensitiveContains(query) ||
+        post.content.localizedCaseInsensitiveContains(query) ||
+        post.category.localizedCaseInsensitiveContains(query) ||
+        (post.author?.username.localizedCaseInsensitiveContains(query) ?? false)
+    }
 
     var body: some View {
         NavigationStack {
@@ -39,23 +71,56 @@ struct FeedView: View {
                 if appState.posts.isEmpty && !appState.isLoading {
                     ContentUnavailableView("No posts yet", systemImage: "flame", description: Text("Be the first to share an idea."))
                 } else {
-                    List(appState.posts) { post in
-                        PostCard(post: post)
-                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                    List {
+                        categoryFilterBar
+                            .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
+
+                        ForEach(filteredPosts) { post in
+                            PostCard(post: post)
+                                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                        }
                     }
                     .listStyle(.plain)
                     .refreshable { await appState.loadPosts() }
                 }
             }
             .navigationTitle("Spark")
+            .searchable(text: $searchText, prompt: "Search posts")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     AuthButton()
                 }
             }
             .task { await appState.loadPosts() }
+        }
+    }
+
+    private var categoryFilterBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(categories, id: \.self) { category in
+                    Button {
+                        selectedCategory = category
+                    } label: {
+                        Text(category)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                selectedCategory == category ? Color(red: 0.0, green: 113.0 / 255.0, blue: 227.0 / 255.0) : Color.secondary.opacity(0.12),
+                                in: Capsule()
+                            )
+                            .foregroundStyle(selectedCategory == category ? .white : .primary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
         }
     }
 }
