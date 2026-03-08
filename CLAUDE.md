@@ -25,3 +25,9 @@ iOS companion for [Spark](https://github.com/nulljosh/spark). Idea-sharing with 
 open SparkApp.swift  # Opens in Xcode
 # Or: xcodebuild -scheme Spark -destination 'platform=iOS Simulator'
 ```
+
+## Quick Commands
+- `./scripts/simplify.sh`
+- `./scripts/monetize.sh . --write`
+- `./scripts/audit.sh .`
+- `./scripts/ship.sh .`
