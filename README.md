@@ -27,6 +27,8 @@ Native iOS companion for [Spark](https://spark.heyitsmejosh.com) -- idea sharing
 - Create posts with category picker
 - Login / register in-app
 - Profile: your posts, score, sign out
+- Delete your own posts (swipe-to-delete)
+- Search and filter posts by category
 - JWT stored securely in Keychain
 
 ## Build
@@ -53,6 +55,7 @@ Base: `https://spark.heyitsmejosh.com`
 | GET | /api/posts | no |
 | POST | /api/posts | yes |
 | POST | /api/posts/:id/vote | yes |
+| DELETE | /api/posts/:id | yes |
 
 ## Roadmap
 

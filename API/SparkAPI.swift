@@ -1,28 +1,52 @@
 import Foundation
 
-enum APIError: LocalizedError {
+enum APIError: LocalizedError, Equatable {
     case invalidURL
     case badResponse(Int)
-    case decodingError(Error)
+    case decodingError(String)
     case serverError(String)
+    case unauthorized
+    case rateLimited
 
     var errorDescription: String? {
         switch self {
         case .invalidURL: return "Invalid URL"
         case .badResponse(let code): return "Server returned \(code)"
-        case .decodingError(let err): return "Decode error: \(err.localizedDescription)"
+        case .decodingError(let msg): return "Decode error: \(msg)"
         case .serverError(let msg): return msg
+        case .unauthorized: return "Session expired. Please sign in again."
+        case .rateLimited: return "Too many requests. Try again shortly."
         }
     }
 }
 
-final class SparkAPI: Sendable {
+protocol SparkAPIProtocol: Sendable {
+    func login(username: String, password: String) async throws -> AuthResponse
+    func register(username: String, email: String?, password: String) async throws -> AuthResponse
+    func fetchPosts() async throws -> [Post]
+    func createPost(title: String, content: String, category: String) async throws -> Post
+    func vote(postId: String, type: String) async throws
+    func deletePost(id: String) async throws
+    func saveToken(_ token: String)
+    func loadToken() -> String?
+    func clearToken()
+}
+
+final class SparkAPI: SparkAPIProtocol, Sendable {
     static let shared = SparkAPI()
+
+    static let unauthorizedNotification = Notification.Name("SparkAPIUnauthorized")
 
     private let baseURL = "https://spark.heyitsmejosh.com"
     private let tokenKey = "spark_jwt"
+    private let session: URLSession
 
-    private init() {}
+    private init() {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForResource = 60
+        session = URLSession(configuration: config)
+    }
 
     // MARK: - Token
 
@@ -59,8 +83,18 @@ final class SparkAPI: Sendable {
     }
 
     private func validated(_ req: URLRequest) async throws -> Data {
-        let (data, response) = try await URLSession.shared.data(for: req)
+        let (data, response) = try await session.data(for: req)
         guard let http = response as? HTTPURLResponse else { throw APIError.badResponse(0) }
+
+        if http.statusCode == 401 {
+            NotificationCenter.default.post(name: Self.unauthorizedNotification, object: nil)
+            throw APIError.unauthorized
+        }
+
+        if http.statusCode == 429 {
+            throw APIError.rateLimited
+        }
+
         guard (200...299).contains(http.statusCode) else {
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let msg = json["error"] as? String {
@@ -76,12 +110,19 @@ final class SparkAPI: Sendable {
         do {
             return try JSONDecoder().decode(T.self, from: data)
         } catch {
-            throw APIError.decodingError(error)
+            throw APIError.decodingError(error.localizedDescription)
         }
     }
 
     private func performVoid(_ req: URLRequest) async throws {
         _ = try await validated(req)
+    }
+
+    private func encodedId(_ id: String) throws -> String {
+        guard let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else {
+            throw APIError.invalidURL
+        }
+        return encoded
     }
 
     // MARK: - Auth
@@ -120,9 +161,15 @@ final class SparkAPI: Sendable {
     }
 
     func vote(postId: String, type: String) async throws {
+        let id = try encodedId(postId)
         let payload = ["voteType": type]
         let body = try JSONSerialization.data(withJSONObject: payload)
-        let req = try request("/api/posts/\(postId)/vote", method: "POST", body: body, auth: true)
+        let req = try request("/api/posts/\(id)/vote", method: "POST", body: body, auth: true)
+        try await performVoid(req)
+    }
+
+    func deletePost(id: String) async throws {
+        let req = try request("/api/posts/\(try encodedId(id))", method: "DELETE", auth: true)
         try await performVoid(req)
     }
 }

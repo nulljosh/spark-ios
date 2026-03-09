@@ -8,22 +8,61 @@ struct ContentView: View {
 
     var body: some View {
         @Bindable var appState = appState
-        TabView(selection: $selectedTab) {
-            FeedView()
-                .tabItem { Label("Feed", systemImage: "flame") }
-                .tag(0)
+        ZStack(alignment: .top) {
+            TabView(selection: $selectedTab) {
+                FeedView()
+                    .tabItem { Label("Feed", systemImage: "flame") }
+                    .tag(0)
 
-            CreateView(selectedTab: $selectedTab)
-                .tabItem { Label("Create", systemImage: "plus.circle") }
-                .tag(1)
+                CreateView(selectedTab: $selectedTab)
+                    .tabItem { Label("Create", systemImage: "plus.circle") }
+                    .tag(1)
 
-            ProfileView()
-                .tabItem { Label("Profile", systemImage: "person.circle") }
-                .tag(2)
+                ProfileView()
+                    .tabItem { Label("Profile", systemImage: "person.circle") }
+                    .tag(2)
+            }
+            .tint(.sparkBlue)
+            .sheet(isPresented: $appState.showAuth) {
+                AuthSheet()
+            }
+
+            ErrorBanner()
         }
-        .tint(.accent)
-        .sheet(isPresented: $appState.showAuth) {
-            AuthSheet()
+    }
+}
+
+// MARK: - Error Banner
+
+struct ErrorBanner: View {
+    @Environment(AppState.self) private var appState
+
+    var body: some View {
+        if let msg = appState.errorBanner {
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.white)
+                Text(msg)
+                    .font(.caption)
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+                Spacer()
+                Button {
+                    appState.dismissError()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.caption2.bold())
+                        .foregroundStyle(.white.opacity(0.8))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Color.red.opacity(0.9), in: RoundedRectangle(cornerRadius: 10))
+            .padding(.horizontal, 16)
+            .padding(.top, 4)
+            .transition(.move(edge: .top).combined(with: .opacity))
+            .animation(.easeInOut(duration: 0.25), value: appState.errorBanner != nil)
         }
     }
 }
@@ -68,7 +107,13 @@ struct FeedView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if appState.posts.isEmpty && !appState.isLoading {
+                if appState.isFeedLoading && appState.posts.isEmpty {
+                    VStack {
+                        Spacer()
+                        ProgressView("Loading posts...")
+                        Spacer()
+                    }
+                } else if appState.posts.isEmpty {
                     ContentUnavailableView("No posts yet", systemImage: "flame", description: Text("Be the first to share an idea."))
                 } else {
                     List {
@@ -77,11 +122,17 @@ struct FeedView: View {
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
 
-                        ForEach(filteredPosts) { post in
-                            PostCard(post: post)
-                                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                        if filteredPosts.isEmpty {
+                            ContentUnavailableView("No matches", systemImage: "magnifyingglass", description: Text("No posts match the current filter."))
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
+                        } else {
+                            ForEach(filteredPosts) { post in
+                                PostCard(post: post)
+                                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                                    .listRowSeparator(.hidden)
+                                    .listRowBackground(Color.clear)
+                            }
                         }
                     }
                     .listStyle(.plain)
@@ -112,7 +163,7 @@ struct FeedView: View {
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                             .background(
-                                selectedCategory == category ? Color(red: 0.0, green: 113.0 / 255.0, blue: 227.0 / 255.0) : Color.secondary.opacity(0.12),
+                                selectedCategory == category ? Color.sparkBlue : Color.secondary.opacity(0.12),
                                 in: Capsule()
                             )
                             .foregroundStyle(selectedCategory == category ? .white : .primary)
@@ -144,6 +195,7 @@ struct PostCard: View {
             Text(post.title)
                 .font(.headline)
                 .foregroundStyle(.primary)
+                .lineLimit(2)
 
             Text(post.content)
                 .font(.subheadline)
@@ -199,16 +251,25 @@ struct VoteButton: View {
     let icon: String
     let postId: String
 
+    private var isVoting: Bool {
+        appState.votingPostIds.contains(postId)
+    }
+
     var body: some View {
         Button {
             Task { await appState.vote(postId: postId, type: label) }
         } label: {
-            Image(systemName: icon)
-                .font(.subheadline)
-                .foregroundStyle(appState.isLoggedIn ? .accent : .secondary)
+            if isVoting {
+                ProgressView()
+                    .controlSize(.mini)
+            } else {
+                Image(systemName: icon)
+                    .font(.subheadline)
+                    .foregroundStyle(appState.isLoggedIn ? Color.sparkBlue : Color.secondary)
+            }
         }
         .buttonStyle(.plain)
-        .disabled(!appState.isLoggedIn)
+        .disabled(!appState.isLoggedIn || isVoting)
     }
 }
 
@@ -221,8 +282,8 @@ struct CategoryBadge: View {
             .fontWeight(.semibold)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(Color.accent.opacity(0.15), in: Capsule())
-            .foregroundStyle(.accent)
+            .background(Color.sparkBlue.opacity(0.15), in: Capsule())
+            .foregroundStyle(Color.sparkBlue)
     }
 }
 
@@ -340,12 +401,12 @@ struct ProfileView: View {
                     Section {
                         HStack(spacing: 14) {
                             Circle()
-                                .fill(Color.accent.opacity(0.15))
+                                .fill(Color.sparkBlue.opacity(0.15))
                                 .frame(width: 60, height: 60)
                                 .overlay(
                                     Text(String(user.username.prefix(1)).uppercased())
                                         .font(.title2.bold())
-                                        .foregroundStyle(.accent)
+                                        .foregroundStyle(Color.sparkBlue)
                                 )
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(user.username)
@@ -364,6 +425,7 @@ struct ProfileView: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(post.title)
                                         .font(.subheadline.weight(.medium))
+                                        .lineLimit(2)
                                     HStack {
                                         CategoryBadge(category: post.category)
                                         Spacer()
@@ -373,6 +435,18 @@ struct ProfileView: View {
                                     }
                                 }
                                 .padding(.vertical, 2)
+                            }
+                            .onDelete { offsets in
+                                let toDelete = offsets.map { myPosts[$0] }
+                                for post in toDelete {
+                                    Task {
+                                        do {
+                                            try await appState.deletePost(id: post.id)
+                                        } catch {
+                                            appState.errorBanner = error.localizedDescription
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -396,7 +470,7 @@ struct ProfileView: View {
                                 appState.showAuth = true
                             }
                             .buttonStyle(.borderedProminent)
-                            .tint(.accent)
+                            .tint(.sparkBlue)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 24)
@@ -469,7 +543,7 @@ struct AuthSheet: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.accent)
+                .tint(.sparkBlue)
                 .controlSize(.large)
                 .disabled(!canSubmit)
                 .padding(.horizontal)
@@ -516,13 +590,13 @@ struct AuthButton: View {
                 appState.logout()
             } label: {
                 Image(systemName: "person.fill.checkmark")
-                    .foregroundStyle(.accent)
+                    .foregroundStyle(Color.sparkBlue)
             }
         } else {
             Button("Sign In") {
                 appState.showAuth = true
             }
-            .tint(.accent)
+            .tint(.sparkBlue)
         }
     }
 }
@@ -530,7 +604,7 @@ struct AuthButton: View {
 // MARK: - Color Extension
 
 extension Color {
-    static let accent = Color(hex: "0071e3")
+    static let sparkBlue = Color(hex: "0071e3")
 
     init(hex: String) {
         let scanner = Scanner(string: hex)

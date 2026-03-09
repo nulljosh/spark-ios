@@ -1,0 +1,63 @@
+import Foundation
+@testable import Spark
+
+final class MockSparkAPI: SparkAPIProtocol, @unchecked Sendable {
+    var loginResult: Result<AuthResponse, Error> = .success(
+        AuthResponse(token: "mock_token", username: "testuser", userId: "uid1")
+    )
+    var registerResult: Result<AuthResponse, Error> = .success(
+        AuthResponse(token: "mock_token", username: "newuser", userId: "uid2")
+    )
+    var fetchPostsResult: Result<[Post], Error> = .success([])
+    var createPostResult: Result<Post, Error> = .success(
+        Post(id: "new1", title: "New", content: "Body", category: "Tech", score: 0, author: Post.Author(username: "testuser"), createdAt: nil)
+    )
+    var voteResult: Result<Void, Error> = .success(())
+    var deletePostResult: Result<Void, Error> = .success(())
+
+    var savedToken: String?
+    var tokenCleared = false
+    var loginCallCount = 0
+    var voteCallCount = 0
+    var deleteCallCount = 0
+
+    func login(username: String, password: String) async throws -> AuthResponse {
+        loginCallCount += 1
+        return try loginResult.get()
+    }
+
+    func register(username: String, email: String?, password: String) async throws -> AuthResponse {
+        return try registerResult.get()
+    }
+
+    func fetchPosts() async throws -> [Post] {
+        return try fetchPostsResult.get()
+    }
+
+    func createPost(title: String, content: String, category: String) async throws -> Post {
+        return try createPostResult.get()
+    }
+
+    func vote(postId: String, type: String) async throws {
+        voteCallCount += 1
+        try voteResult.get()
+    }
+
+    func deletePost(id: String) async throws {
+        deleteCallCount += 1
+        try deletePostResult.get()
+    }
+
+    func saveToken(_ token: String) {
+        savedToken = token
+    }
+
+    func loadToken() -> String? {
+        return savedToken
+    }
+
+    func clearToken() {
+        savedToken = nil
+        tokenCleared = true
+    }
+}
