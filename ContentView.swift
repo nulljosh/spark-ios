@@ -130,10 +130,13 @@ struct FeedView: View {
                                 .listRowBackground(Color.clear)
                         } else {
                             ForEach(filteredPosts) { post in
-                                PostCard(post: post)
-                                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                                    .listRowSeparator(.hidden)
-                                    .listRowBackground(Color.clear)
+                                NavigationLink(value: post) {
+                                    PostCard(post: post)
+                                }
+                                .buttonStyle(.plain)
+                                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
                             }
                         }
                     }
@@ -148,6 +151,9 @@ struct FeedView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     AuthButton()
                 }
+            }
+            .navigationDestination(for: Post.self) { post in
+                PostDetailView(post: post)
             }
             .task { await appState.loadPosts() }
         }

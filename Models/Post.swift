@@ -1,6 +1,6 @@
 import Foundation
 
-struct Post: Codable, Identifiable {
+struct Post: Codable, Identifiable, Hashable {
     let id: String
     let title: String
     let content: String
@@ -9,7 +9,7 @@ struct Post: Codable, Identifiable {
     let author: Author?
     let createdAt: String?
 
-    struct Author: Codable {
+    struct Author: Codable, Hashable {
         let username: String
     }
 }
