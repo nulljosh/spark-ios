@@ -11,15 +11,15 @@ struct ContentView: View {
         ZStack(alignment: .top) {
             TabView(selection: $selectedTab) {
                 FeedView()
-                    .tabItem { Label("Feed", systemImage: "flame") }
+                    .tabItem { Label("Feed", systemImage: selectedTab == 0 ? "flame.fill" : "flame") }
                     .tag(0)
 
                 CreateView(selectedTab: $selectedTab)
-                    .tabItem { Label("Create", systemImage: "plus.circle") }
+                    .tabItem { Label("Create", systemImage: selectedTab == 1 ? "plus.circle.fill" : "plus.circle") }
                     .tag(1)
 
                 ProfileView()
-                    .tabItem { Label("Profile", systemImage: "person.circle") }
+                    .tabItem { Label("Profile", systemImage: selectedTab == 2 ? "person.circle.fill" : "person.circle") }
                     .tag(2)
             }
             .tint(.sparkBlue)
@@ -27,8 +27,12 @@ struct ContentView: View {
                 AuthSheet()
             }
 
-            ErrorBanner()
+            if appState.errorBanner != nil {
+                ErrorBanner()
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
         }
+        .animation(.spring(duration: 0.3), value: appState.errorBanner != nil)
     }
 }
 
@@ -61,8 +65,6 @@ struct ErrorBanner: View {
             .background(Color.red.opacity(0.9), in: RoundedRectangle(cornerRadius: 10))
             .padding(.horizontal, 16)
             .padding(.top, 4)
-            .transition(.move(edge: .top).combined(with: .opacity))
-            .animation(.easeInOut(duration: 0.25), value: appState.errorBanner != nil)
         }
     }
 }
@@ -139,6 +141,7 @@ struct FeedView: View {
                     .refreshable { await appState.loadPosts() }
                 }
             }
+            .background(Color(.systemGroupedBackground))
             .navigationTitle("Spark")
             .searchable(text: $searchText, prompt: "Search posts")
             .toolbar {
@@ -207,6 +210,8 @@ struct PostCard: View {
                 Text("\(post.score)")
                     .font(.subheadline.monospacedDigit())
                     .foregroundStyle(.primary)
+                    .contentTransition(.numericText(value: Double(post.score)))
+                    .animation(.spring(duration: 0.3), value: post.score)
                 VoteButton(label: "down", icon: "arrow.down", postId: post.id)
                 Spacer()
                 if let date = post.createdAt {
@@ -257,6 +262,7 @@ struct VoteButton: View {
 
     var body: some View {
         Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
             Task { await appState.vote(postId: postId, type: label) }
         } label: {
             if isVoting {
@@ -274,6 +280,7 @@ struct VoteButton: View {
 }
 
 struct CategoryBadge: View {
+    @Environment(\.colorScheme) private var colorScheme
     let category: String
 
     var body: some View {
@@ -282,7 +289,7 @@ struct CategoryBadge: View {
             .fontWeight(.semibold)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(Color.sparkBlue.opacity(0.15), in: Capsule())
+            .background(Color.sparkBlue.opacity(colorScheme == .dark ? 0.25 : 0.15), in: Capsule())
             .foregroundStyle(Color.sparkBlue)
     }
 }
@@ -372,6 +379,7 @@ struct CreateView: View {
         Task {
             do {
                 try await appState.createPost(title: title, content: content, category: category)
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
                 title = ""
                 content = ""
                 category = "General"
@@ -388,6 +396,7 @@ struct CreateView: View {
 
 struct ProfileView: View {
     @Environment(AppState.self) private var appState
+    @Environment(\.colorScheme) private var colorScheme
 
     var myPosts: [Post] {
         guard let username = appState.user?.username else { return [] }
@@ -401,7 +410,7 @@ struct ProfileView: View {
                     Section {
                         HStack(spacing: 14) {
                             Circle()
-                                .fill(Color.sparkBlue.opacity(0.15))
+                                .fill(Color.sparkBlue.opacity(colorScheme == .dark ? 0.25 : 0.15))
                                 .frame(width: 60, height: 60)
                                 .overlay(
                                     Text(String(user.username.prefix(1)).uppercased())

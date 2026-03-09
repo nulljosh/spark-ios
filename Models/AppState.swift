@@ -20,7 +20,7 @@ final class AppState {
     private var lastVoteTimes: [String: Date] = [:]
     private let voteDebounceInterval: TimeInterval = 0.5
 
-    private nonisolated(unsafe) var unauthorizedObserver: Any?
+    private var unauthorizedObserver: (any NSObjectProtocol)?
 
     let api: SparkAPIProtocol
 
@@ -30,19 +30,15 @@ final class AppState {
         observeUnauthorized()
     }
 
-    nonisolated deinit {
-        if let observer = unauthorizedObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-    }
-
     private func observeUnauthorized() {
         unauthorizedObserver = NotificationCenter.default.addObserver(
             forName: SparkAPI.unauthorizedNotification,
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.handleUnauthorized()
+            MainActor.assumeIsolated {
+                self?.handleUnauthorized()
+            }
         }
     }
 
