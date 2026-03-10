@@ -322,6 +322,12 @@ struct CreateView: View {
                     TextField("Title", text: $title)
                     TextField("Description", text: $content, axis: .vertical)
                         .lineLimit(4...8)
+                    HStack {
+                        Spacer()
+                        Text("\(content.count)/500")
+                            .font(.caption)
+                            .foregroundStyle(content.count > 500 ? .red : .secondary)
+                    }
                 }
                 Section("Category") {
                     Picker("Category", selection: $category) {
@@ -376,7 +382,7 @@ struct CreateView: View {
 
     private var canPost: Bool {
         appState.isLoggedIn && !title.trimmingCharacters(in: .whitespaces).isEmpty &&
-        !content.trimmingCharacters(in: .whitespaces).isEmpty && !isPosting
+        !content.trimmingCharacters(in: .whitespaces).isEmpty && content.count <= 500 && !isPosting
     }
 
     private func post() {
