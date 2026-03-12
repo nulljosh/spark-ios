@@ -1,4 +1,5 @@
 import SwiftUI
+import LocalAuthentication
 
 // MARK: - Root
 
@@ -514,6 +515,19 @@ struct AuthSheet: View {
     @State private var username = ""
     @State private var email = ""
     @State private var password = ""
+    @State private var biometryType: LABiometryType = .none
+
+    private var canUseBiometrics: Bool {
+        biometryType != .none
+    }
+
+    private var biometricLabel: String {
+        biometryType == .faceID ? "Face ID" : "Touch ID"
+    }
+
+    private var biometricIcon: String {
+        biometryType == .faceID ? "faceid" : "touchid"
+    }
 
     var body: some View {
         NavigationStack {
@@ -524,6 +538,21 @@ struct AuthSheet: View {
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal)
+
+                if tab == 0, canUseBiometrics, appState.hasSavedBiometricCredentials() {
+                    Button {
+                        Task {
+                            await appState.biometricLogin()
+                        }
+                    } label: {
+                        Label("Sign in with \(biometricLabel)", systemImage: biometricIcon)
+                            .frame(maxWidth: .infinity)
+                            .fontWeight(.semibold)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.sparkBlue)
+                    .padding(.horizontal)
+                }
 
                 VStack(spacing: 14) {
                     TextField("Username", text: $username)
@@ -581,6 +610,9 @@ struct AuthSheet: View {
                         dismiss()
                     }
                 }
+            }
+            .onAppear {
+                biometryType = appState.biometricBiometryType()
             }
         }
     }

@@ -1,9 +1,14 @@
 import Foundation
 import Observation
+import LocalAuthentication
 
 @MainActor
 @Observable
 final class AppState {
+    private enum BiometricConstants {
+        static let savedUsernameKey = "spark_saved_username"
+    }
+
     var user: AuthResponse?
     var posts: [Post] = []
     var showAuth: Bool = false
@@ -54,21 +59,57 @@ final class AppState {
     func login(username: String, password: String) async {
         await authenticate {
             try await self.api.login(username: username, password: password)
+        } onSuccess: {
+            self.saveBiometricCredentials(username: username, password: password)
         }
     }
 
     func register(username: String, email: String?, password: String) async {
         await authenticate {
             try await self.api.register(username: username, email: email, password: password)
+        } onSuccess: {
+            self.saveBiometricCredentials(username: username, password: password)
         }
     }
 
     func logout() {
         api.clearToken()
         KeychainHelper.delete(key: Self.userCacheKey)
+        clearBiometricCredentials()
         user = nil
         posts = []
         errorBanner = nil
+    }
+
+    func biometricBiometryType() -> LABiometryType {
+        let context = LAContext()
+        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil) else {
+            return .none
+        }
+        return context.biometryType
+    }
+
+    func hasSavedBiometricCredentials() -> Bool {
+        guard let username = UserDefaults.standard.string(forKey: BiometricConstants.savedUsernameKey) else {
+            return false
+        }
+        return KeychainHelper.load(key: username) != nil
+    }
+
+    func biometricLogin() async {
+        error = nil
+
+        let context = LAContext()
+        do {
+            try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Sign in to Spark")
+            guard let credentials = loadBiometricCredentials() else {
+                error = "No saved credentials found"
+                return
+            }
+            await login(username: credentials.username, password: credentials.password)
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
 
     func loadPosts() async {
@@ -147,13 +188,17 @@ final class AppState {
         user = saved
     }
 
-    private func authenticate(_ action: () async throws -> AuthResponse) async {
+    private func authenticate(
+        _ action: () async throws -> AuthResponse,
+        onSuccess: @escaping () -> Void = {}
+    ) async {
         isLoading = true
         error = nil
         do {
             let auth = try await action()
             user = auth
             persistUser(auth)
+            onSuccess()
             showAuth = false
             await loadPosts()
         } catch {
@@ -166,5 +211,27 @@ final class AppState {
         if let data = try? JSONEncoder().encode(auth) {
             KeychainHelper.save(key: Self.userCacheKey, data: data)
         }
+    }
+
+    private func saveBiometricCredentials(username: String, password: String) {
+        guard let passwordData = password.data(using: .utf8) else { return }
+        UserDefaults.standard.set(username, forKey: BiometricConstants.savedUsernameKey)
+        KeychainHelper.save(key: username, data: passwordData)
+    }
+
+    private func loadBiometricCredentials() -> (username: String, password: String)? {
+        guard let username = UserDefaults.standard.string(forKey: BiometricConstants.savedUsernameKey),
+              let data = KeychainHelper.load(key: username),
+              let password = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+        return (username, password)
+    }
+
+    private func clearBiometricCredentials() {
+        if let username = UserDefaults.standard.string(forKey: BiometricConstants.savedUsernameKey) {
+            KeychainHelper.delete(key: username)
+        }
+        UserDefaults.standard.removeObject(forKey: BiometricConstants.savedUsernameKey)
     }
 }
