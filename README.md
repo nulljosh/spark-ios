@@ -12,6 +12,8 @@ Native iOS companion for [Spark](https://spark.heyitsmejosh.com) -- idea sharing
 
 ![Architecture](architecture.svg)
 
+Portrait-only. Runs on iPhone.
+
 ## Stack
 
 - SwiftUI, iOS 17+, Swift 6

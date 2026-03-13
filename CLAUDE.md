@@ -12,6 +12,9 @@ iOS companion for [Spark](https://github.com/nulljosh/spark). Idea-sharing with 
 - Accent: #0071e3 blue
 - No emojis
 
+## Display
+- Portrait-only, UIRequiresFullScreen enabled
+
 ## Features
 - Auth: login/register with JWT/Keychain
 - Feed: load posts, pull-to-refresh, search, category filter
